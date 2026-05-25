@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Jimmy VPN</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0f;
+    --card: #12121a;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --border: rgba(108,99,255,0.15);
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(108,99,255,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(255,101,132,0.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .container { width: 100%; max-width: 360px; position: relative; z-index: 1; }
+  .logo { text-align: center; margin-bottom: 28px; }
+  .logo-icon {
+    width: 68px; height: 68px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 30px; margin-bottom: 10px;
+    box-shadow: 0 8px 32px rgba(108,99,255,0.3);
+  }
+  .logo h1 {
+    font-size: 22px; font-weight: 700;
+    background: linear-gradient(135deg, #fff 60%, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 20px; margin-bottom: 12px;
+  }
+  .card-label { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { font-size: 13px; color: var(--muted); }
+  .info-value { font-size: 13px; font-weight: 600; }
+  .status-active { color: #4ade80; }
+  .status-inactive { color: #f87171; }
+  .sub-link {
+    background: rgba(108,99,255,0.08); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+    font-size: 11px; color: var(--text); word-break: break-all;
+    line-height: 1.5; font-family: monospace; margin-top: 8px;
+  }
+  .btn {
+    width: 100%; padding: 15px; border-radius: 14px; border: none;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center;
+    justify-content: center; gap: 8px; margin-bottom: 10px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    color: #fff; box-shadow: 0 4px 20px rgba(108,99,255,0.35);
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+  .btn-secondary:active { transform: scale(0.97); }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.3);
+    color: #4ade80; padding: 10px 20px; border-radius: 100px;
+    font-size: 13px; font-weight: 500; transition: transform 0.3s;
+    white-space: nowrap; z-index: 100;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot-green { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+  .dot-red { background: #f87171; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-icon">🛡️</div>
+    <h1>Jimmy VPN</h1>
+  </div>
+  <div id="content"></div>
+</div>
+<div class="toast" id="toast">✓ Скопировано!</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand();
+tg.ready();
+
+const params = new URLSearchParams(window.location.search);
+const sub = params.get('sub');
+const days = params.get('days');
+const up = params.get('up');
+const down = params.get('down');
+const active = params.get('active');
+const balance = params.get('balance');
+
+const content = document.getElementById('content');
+
+if (!sub) {
+  content.innerHTML = `
+    <div class="card">
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:40px;margin-bottom:12px">🔐</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">Ключ не найден</div>
+        <div style="font-size:13px;color:var(--muted)">Перейдите в личный кабинет бота</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="tg.close()">← Вернуться в бот</button>
+  `;
+} else {
+  const isActive = active === '1';
+  const daysNum = parseInt(days) || 0;
+  const expText = daysNum === 0 ? '⚠️ Истекает сегодня' : daysNum > 0 ? daysNum + ' дн.' : '—';
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-label">Статус подписки</div>
+      <div class="info-row">
+        <span class="info-label">Состояние</span>
+        <span class="info-value ${isActive ? 'status-active' : 'status-inactive'}">
+          <span class="dot ${isActive ? 'dot-green' : 'dot-red'}"></span>
+          ${isActive ? 'Активна' : 'Отключена'}
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Осталось дней</span>
+        <span class="info-value">${expText}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Трафик ↑</span>
+        <span class="info-value">${up || '0 Б'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Трафик ↓</span>
+        <span class="info-value">${down || '0 Б'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Баланс</span>
+        <span class="info-value">${balance || '0'} руб.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Ссылка подписки</div>
+      <div class="sub-link">${sub}</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="openHapp()">🚀 Открыть в Happ</button>
+    <button class="btn btn-secondary" onclick="copyLink()">📋 Скопировать ссылку</button>
+    <button class="btn btn-secondary" onclick="window.open('https://play.google.com/store/apps/details?id=com.happproxy')">📱 Скачать Happ</button>
+  `;
+}
+
+function openHapp() {
+  // Telegram.WebApp.openLink не блокирует кастомные схемы
+  try {
+    tg.openLink('happ://subscribe?url=' + encodeURIComponent(sub));
+  } catch(e) {
+    // Fallback
+    window.location.href = 'happ://subscribe?url=' + encodeURIComponent(sub);
+  }
+}
+
+function copyLink() {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(sub).then(showToast);
+  } else {
+    const el = document.createElement('textarea');
+    el.value = sub;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast();
+  }
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>
