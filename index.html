@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Jimmy VPN</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0b0b12;
+  --card: #13131f;
+  --card2: #1a1a2e;
+  --accent: #7c6fff;
+  --accent2: #ff6b8a;
+  --green: #4ade80;
+  --red: #f87171;
+  --text: #eeeef5;
+  --muted: #6b6b8a;
+  --border: rgba(124,111,255,0.12);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  padding: 0 0 40px;
+  overflow-x: hidden;
+}
+
+/* Animated bg blobs */
+.blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: blobMove 8s ease-in-out infinite alternate;
+}
+.blob1 { width: 300px; height: 300px; background: rgba(124,111,255,0.1); top: -80px; left: -80px; }
+.blob2 { width: 250px; height: 250px; background: rgba(255,107,138,0.07); bottom: 0; right: -60px; animation-delay: -4s; }
+@keyframes blobMove {
+  0% { transform: translate(0,0) scale(1); }
+  100% { transform: translate(30px,20px) scale(1.1); }
+}
+
+.content { position: relative; z-index: 1; padding: 28px 20px 0; }
+
+/* Header */
+.header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 28px;
+  animation: fadeDown 0.5s ease both;
+}
+.logo-wrap {
+  width: 56px; height: 56px; border-radius: 16px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 6px 24px rgba(124,111,255,0.35);
+}
+.header-text h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+.header-text p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* Status badge */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 100px; font-size: 12px; font-weight: 600;
+  margin-top: 6px;
+}
+.badge-active { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+.badge-inactive { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+.badge-dot-g { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+.badge-dot-r { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(.8)} }
+
+/* Timer */
+.timer-card {
+  background: linear-gradient(135deg, rgba(124,111,255,0.15), rgba(255,107,138,0.1));
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 20px;
+  margin-bottom: 14px; text-align: center;
+  animation: fadeUp 0.5s ease 0.1s both;
+}
+.timer-label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.timer-blocks { display: flex; justify-content: center; gap: 10px; }
+.timer-block { flex: 1; max-width: 72px; }
+.timer-num {
+  background: var(--card2); border-radius: 12px; padding: 12px 4px;
+  font-size: 28px; font-weight: 800; letter-spacing: -1px;
+  border: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.timer-num::after {
+  content: ''; position: absolute; top: 50%; left: 0; right: 0;
+  height: 1px; background: rgba(255,255,255,0.05);
+}
+.timer-unit { font-size: 10px; color: var(--muted); margin-top: 5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.timer-expired { font-size: 18px; font-weight: 700; color: var(--red); padding: 16px 0; }
+
+/* Stats card */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; padding: 18px; margin-bottom: 14px;
+}
+.card-label { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-item {
+  background: var(--card2); border-radius: 14px; padding: 14px 12px;
+  border: 1px solid var(--border);
+}
+.stat-icon { font-size: 18px; margin-bottom: 6px; }
+.stat-val { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+.stat-name { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* Traffic bar */
+.traffic-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.traffic-row:last-child { border: none; }
+.traffic-arrow { font-size: 14px; width: 20px; text-align: center; }
+.traffic-bar-wrap { flex: 1; background: rgba(255,255,255,0.05); border-radius: 100px; height: 4px; overflow: hidden; }
+.traffic-bar { height: 100%; border-radius: 100px; transition: width 1s ease; }
+.bar-up { background: linear-gradient(90deg, #6c63ff, #a78bfa); }
+.bar-down { background: linear-gradient(90deg, #ff6b8a, #fb923c); }
+.traffic-val { font-size: 13px; font-weight: 600; min-width: 56px; text-align: right; }
+
+/* Sub link */
+.sub-wrap { position: relative; }
+.sub-link {
+  background: rgba(124,111,255,0.07); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 44px 12px 14px;
+  font-size: 11px; word-break: break-all; line-height: 1.6;
+  font-family: 'SF Mono', 'Fira Code', monospace; color: var(--muted);
+}
+.copy-inline {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: var(--accent); border: none; border-radius: 8px;
+  width: 32px; height: 32px; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.copy-inline:active { transform: translateY(-50%) scale(0.9); }
+
+/* Buttons */
+.btn {
+  width: 100%; padding: 16px; border-radius: 16px; border: none;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; margin-bottom: 12px;
+  transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
+  letter-spacing: -0.2px; position: relative; overflow: hidden;
+}
+.btn::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(255,255,255,0); transition: background 0.2s;
+}
+.btn:active { transform: scale(0.95); }
+.btn:active::after { background: rgba(255,255,255,0.08); }
+.btn-primary {
+  background: linear-gradient(135deg, #7c6fff 0%, #b06aff 100%);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(124,111,255,0.3), 0 8px 24px rgba(124,111,255,0.35), 0 2px 4px rgba(0,0,0,0.3);
+}
+.btn-ghost {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.btn-support { background: rgba(0,136,204,0.12); border: 1px solid rgba(0,136,204,0.2); color: #29b6f6; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: rgba(74,222,128,0.15); backdrop-filter: blur(10px);
+  border: 1px solid rgba(74,222,128,0.25); color: var(--green);
+  padding: 11px 22px; border-radius: 100px; font-size: 14px; font-weight: 500;
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1);
+  white-space: nowrap; z-index: 100;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Animations */
+@keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.a1 { animation: fadeUp 0.5s ease 0.15s both; }
+.a2 { animation: fadeUp 0.5s ease 0.25s both; }
+.a3 { animation: fadeUp 0.5s ease 0.35s both; }
+.a4 { animation: fadeUp 0.5s ease 0.45s both; }
+
+/* No key */
+.no-key { text-align: center; padding: 48px 24px; animation: fadeUp 0.5s ease both; }
+.no-key .icon { font-size: 52px; margin-bottom: 16px; }
+.no-key h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.no-key p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+
+<div class="content">
+  <div id="root"></div>
+</div>
+
+<div class="toast" id="toast">✓ Скопировано!</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand();
+tg.ready();
+// Всегда тёмная тема
+
+const p = new URLSearchParams(window.location.search);
+const sub  = p.get('sub');
+const days = parseInt(p.get('days') ?? '-1');
+const upStr   = p.get('up')   || '0 Б';
+const downStr = p.get('down') || '0 Б';
+const active  = p.get('active') === '1';
+const balance = p.get('balance') || '0';
+const root = document.getElementById('root');
+
+if (!sub) {
+  root.innerHTML = `
+    <div class="no-key">
+      <div class="icon">🔐</div>
+      <h2>Ключ не найден</h2>
+      <p>Перейдите в бот и нажмите<br><b>👤 Личный кабинет → 📡 Подключить</b></p>
+    </div>
+    <button class="btn btn-primary" onclick="tg.close()">← Вернуться в бот</button>`;
+} else {
+  // Timer
+  let timerHTML = '';
+  if (days < 0) {
+    timerHTML = `<div class="timer-expired">⚠️ Подписка истекла</div>`;
+  } else {
+    const totalSec = days * 86400;
+    timerHTML = `
+      <div class="timer-blocks" id="timerBlocks">
+        <div class="timer-block"><div class="timer-num" id="tDays">${String(days).padStart(2,'0')}</div><div class="timer-unit">дней</div></div>
+        <div class="timer-block"><div class="timer-num" id="tHrs">00</div><div class="timer-unit">часов</div></div>
+        <div class="timer-block"><div class="timer-num" id="tMin">00</div><div class="timer-unit">минут</div></div>
+        <div class="timer-block"><div class="timer-num" id="tSec">00</div><div class="timer-unit">секунд</div></div>
+      </div>`;
+  }
+
+  const isActive = active;
+  root.innerHTML = `
+    <div class="header">
+      <div class="logo-wrap">🛡️</div>
+      <div class="header-text">
+        <h1>Jimmy VPN</h1>
+        <div class="badge ${isActive ? 'badge-active' : 'badge-inactive'}">
+          <span class="badge-dot ${isActive ? 'badge-dot-g' : 'badge-dot-r'}"></span>
+          ${isActive ? 'Подписка активна' : 'Подписка отключена'}
+        </div>
+      </div>
+    </div>
+
+    <div class="timer-card">
+      <div class="timer-label">⏱ Осталось до конца подписки</div>
+      ${timerHTML}
+    </div>
+
+    <div class="card a1">
+      <div class="card-label">Статистика</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-icon">💰</div>
+          <div class="stat-val">${balance} руб.</div>
+          <div class="stat-name">Баланс</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">📅</div>
+          <div class="stat-val">${days >= 0 ? days + ' дн.' : 'Истёк'}</div>
+          <div class="stat-name">Осталось</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card a2">
+      <div class="card-label">Трафик</div>
+      <div class="traffic-row">
+        <div class="traffic-arrow">↑</div>
+        <div class="traffic-bar-wrap"><div class="traffic-bar bar-up" id="barUp" style="width:0%"></div></div>
+        <div class="traffic-val">${upStr}</div>
+      </div>
+      <div class="traffic-row">
+        <div class="traffic-arrow">↓</div>
+        <div class="traffic-bar-wrap"><div class="traffic-bar bar-down" id="barDown" style="width:0%"></div></div>
+        <div class="traffic-val">${downStr}</div>
+      </div>
+    </div>
+
+    <div class="card a3">
+      <div class="card-label">Ссылка подписки</div>
+      <div class="sub-wrap">
+        <div class="sub-link">${sub}</div>
+        <button class="copy-inline" onclick="copyLink()" title="Копировать">📋</button>
+      </div>
+    </div>
+
+    <div class="a4">
+      <button class="btn btn-primary" onclick="copyLink()">📋 Скопировать ссылку подписки</button>
+
+      <button class="btn btn-ghost" onclick="window.open('https://play.google.com/store/apps/details?id=com.happproxy')">📱 Скачать Happ</button>
+    </div>
+  `;
+
+  // Animate traffic bars
+  setTimeout(() => {
+    document.getElementById('barUp').style.width = '65%';
+    document.getElementById('barDown').style.width = '45%';
+  }, 600);
+
+  // Countdown timer
+  if (days >= 0) {
+    let remaining = days * 86400;
+    function updateTimer() {
+      const d = Math.floor(remaining / 86400);
+      const h = Math.floor((remaining % 86400) / 3600);
+      const m = Math.floor((remaining % 3600) / 60);
+      const s = remaining % 60;
+      const el = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = String(val).padStart(2,'0'); };
+      el('tDays', d); el('tHrs', h); el('tMin', m); el('tSec', s);
+      if (remaining > 0) { remaining--; setTimeout(updateTimer, 1000); }
+    }
+    updateTimer();
+  }
+}
+
+function copyLink() {
+  if (!sub) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(sub).then(showToast).catch(() => fallbackCopy());
+  } else { fallbackCopy(); }
+}
+function fallbackCopy() {
+  const el = document.createElement('textarea');
+  el.value = sub; document.body.appendChild(el); el.select();
+  document.execCommand('copy'); document.body.removeChild(el); showToast();
+}
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function openSupport() {
+  tg.openTelegramLink('https://t.me/Jimmy_Vpn_Bot');
+}
+</script>
+</body>
+</html>
