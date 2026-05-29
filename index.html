@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jimmy VPN</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #000000;
+            --card-bg: rgba(10, 11, 14, 0.75);
+            --border: #181a21;
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --text-secondary: #6e727f;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --blue: #2980b9;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text-main); min-height: 100vh;
+            display: flex; justify-content: center; align-items: flex-start;
+            overflow-x: hidden; position: relative; perspective: 1000px; }
+
+        #bg-glow {
+            position: fixed; width: 280px; height: 280px;
+            background: radial-gradient(circle, rgba(255,255,255,.1) 0%, rgba(255,255,255,.03) 40%, transparent 70%);
+            top: -140px; left: -140px; pointer-events: none; z-index: -1; border-radius: 50%;
+            will-change: transform; transition: opacity .6s; opacity: 0;
+        }
+
+        .wrapper { width: 100%; max-width: 400px; padding: 24px 16px;
+            display: flex; flex-direction: column; gap: 12px; margin: 0 auto; }
+
+        .card { background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 16px; padding: 16px; backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            transition: transform .4s cubic-bezier(.25,1,.5,1), border-color .3s; }
+
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo-img { width: 40px; height: 40px; border-radius: 10px; overflow: hidden; flex-shrink: 0; }
+        .logo-img img { width: 100%; height: 100%; object-fit: cover; }
+        .logo-emoji { width: 40px; height: 40px; border-radius: 10px; background: #111;
+            border: 1px solid #222; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .brand { font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
+        .status-block { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .dot-on { background: var(--success); box-shadow: 0 0 6px var(--success); animation: blink 2s infinite; }
+        .dot-off { background: var(--danger); }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .status-text { font-size: 12px; font-weight: 500; letter-spacing: .2px; }
+        .balance-text { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+        /* Timer */
+        .timer-card { padding: 18px; }
+        .label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 12px; font-weight: 600; }
+        .t-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+        .t-cell { text-align: center; }
+        .t-num { background: rgba(255,255,255,.04); border: 1px solid #1e1e1e;
+            border-radius: 10px; padding: 12px 4px; font-size: 26px; font-weight: 900;
+            font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+        .t-lbl { font-size: 9px; color: var(--text-secondary); text-transform: uppercase;
+            letter-spacing: 1px; margin-top: 5px; }
+        .expired { text-align: center; font-size: 15px; font-weight: 700;
+            color: var(--danger); padding: 10px 0; }
+
+        /* Metrics */
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .value { font-size: 22px; font-weight: 700; letter-spacing: -.5px; margin-top: 6px; }
+        .traffic-item { display: flex; justify-content: space-between; font-size: 13px;
+            font-weight: 500; margin-top: 6px; }
+        .traffic-val { font-variant-numeric: tabular-nums; font-weight: 700; }
+        .traffic-bar { height: 3px; border-radius: 100px; margin-top: 6px;
+            background: rgba(255,255,255,.06); overflow: hidden; }
+        .tb-fill { height: 100%; border-radius: 100px; width: 0;
+            transition: width 1s cubic-bezier(.34,1.2,.64,1); }
+        .tb-up { background: linear-gradient(90deg,#2980b9,#5dade2); }
+        .tb-dn { background: linear-gradient(90deg,#27ae60,#58d68d); }
+
+        /* Token */
+        .token-zone { cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .token-left { width: 85%; }
+        .token-data { font-family: ui-monospace, monospace; font-size: 12px;
+            color: var(--text-secondary); white-space: nowrap; overflow: hidden;
+            text-overflow: ellipsis; margin-top: 4px; transition: color .2s; }
+        .token-revealed { color: var(--text-main); }
+        .icon-action { width: 24px; height: 24px; opacity: .5; display: flex;
+            align-items: center; justify-content: center; transition: opacity .2s; }
+
+        /* Menu */
+        .menu-list { display: flex; flex-direction: column; gap: 8px; }
+        .menu-item { display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 14px; backdrop-filter: blur(25px); cursor: pointer;
+            transition: transform .3s, border-color .2s; }
+        .menu-item:active { border-color: var(--border-hover); background: rgba(255,255,255,.02); }
+        .menu-left { display: flex; align-items: center; gap: 12px; }
+        .menu-left svg { stroke: var(--text-secondary); }
+        .menu-item h4 { font-size: 14px; font-weight: 500; }
+        .chevron { stroke: #33363f; }
+
+        .btn-update { background: none; border: 1px solid var(--border); color: var(--text-secondary);
+            border-radius: 12px; padding: 13px; font-size: 13px; font-weight: 500;
+            cursor: pointer; display: flex; justify-content: center; align-items: center;
+            gap: 8px; width: 100%; transition: background .2s, color .2s, border-color .2s; }
+        .btn-update:active { background: var(--card-bg); color: var(--text-main); border-color: var(--border-hover); }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 28px; left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(39,174,96,.1); backdrop-filter: blur(12px);
+            border: 1px solid rgba(39,174,96,.2); color: var(--success);
+            padding: 11px 22px; border-radius: 100px; font-size: 13px; font-weight: 600;
+            transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+            white-space: nowrap; z-index: 999; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* No key */
+        .nokey { text-align: center; padding: 56px 20px; }
+        .nokey .icon { font-size: 52px; margin-bottom: 18px; display: block; }
+        .nokey h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+        .nokey p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+        .btn-back { width: 100%; padding: 15px; background: var(--card-bg);
+            border: 1px solid var(--border); color: var(--text-main); border-radius: 14px;
+            font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+
+        .icon-spin { transition: transform .5s ease; }
+        .spinning { transform: rotate(360deg); }
+    </style>
+</head>
+<body>
+<div id="bg-glow"></div>
+<div class="wrapper" id="root"></div>
+<div class="toast" id="toast">✓ Скопировано</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand(); tg.ready();
+
+const p = new URLSearchParams(window.location.search);
+const sub    = p.get('sub') || '';
+const days   = parseInt(p.get('days') ?? '-1');
+const upStr  = p.get('up')   || '0 Б';
+const dnStr  = p.get('down') || '0 Б';
+const active = p.get('active') === '1';
+const bal    = p.get('balance') || '0';
+const root   = document.getElementById('root');
+
+if (!sub) {
+    root.innerHTML = `
+        <div class="nokey">
+            <span class="icon">🔐</span>
+            <h2>Ключ не найден</h2>
+            <p>Откройте бот и нажмите<br><b>👤 Личный кабинет → 📡 Подключить</b></p>
+        </div>
+        <button class="btn-back" onclick="tg.close()">← Вернуться в бот</button>`;
+} else {
+    const timerHTML = days < 0
+        ? `<div class="expired">⚠️ Подписка истекла</div>`
+        : `<div class="t-grid">
+            <div class="t-cell"><div class="t-num" id="tD">${String(days).padStart(2,'0')}</div><div class="t-lbl">Дней</div></div>
+            <div class="t-cell"><div class="t-num" id="tH">00</div><div class="t-lbl">Часов</div></div>
+            <div class="t-cell"><div class="t-num" id="tM">00</div><div class="t-lbl">Минут</div></div>
+            <div class="t-cell"><div class="t-num" id="tS">00</div><div class="t-lbl">Секунд</div></div>
+           </div>`;
+
+    root.innerHTML = `
+        <div class="card header tilt">
+            <div class="header-left">
+                <div class="logo-img">
+                    <img src="logo.png" onerror="this.parentNode.outerHTML='<div class=logo-emoji>🛡️</div>'">
+                </div>
+                <div>
+                    <div class="brand">Jimmy VPN</div>
+                    <div class="status-block">
+                        <div class="status-dot ${active ? 'dot-on':'dot-off'}"></div>
+                        <span class="status-text" style="color:${active ? 'var(--success)':'var(--danger)'}">
+                            ${active ? 'Подписка активна' : 'Подписка отключена'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="balance-text">${bal} ₽</div>
+        </div>
+
+        <div class="card timer-card tilt">
+            <div class="label">⏱ До конца подписки</div>
+            ${timerHTML}
+        </div>
+
+        <div class="metrics-grid">
+            <div class="card tilt">
+                <div class="label">Осталось</div>
+                <div class="value">${days >= 0 ? days : '∞'}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">${days >= 0 ? 'дней' : 'бессрочно'}</div>
+            </div>
+            <div class="card tilt">
+                <div class="label">Трафик</div>
+                <div class="traffic-item">
+                    <span style="color:var(--text-secondary)">↑</span>
+                    <span class="traffic-val">${upStr}</span>
+                </div>
+                <div class="traffic-bar"><div class="tb-fill tb-up" id="bU"></div></div>
+                <div class="traffic-item" style="margin-top:8px">
+                    <span style="color:var(--text-secondary)">↓</span>
+                    <span class="traffic-val">${dnStr}</span>
+                </div>
+                <div class="traffic-bar"><div class="tb-fill tb-dn" id="bD"></div></div>
+            </div>
+        </div>
+
+        <div class="card token-zone tilt" onclick="copyKey()">
+            <div class="token-left">
+                <div class="label">Ссылка подписки</div>
+                <div class="token-data" id="keyEl">••••••••••••••••••••••••••••••••••••</div>
+            </div>
+            <div class="icon-action">
+                <svg id="icoCopy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg id="icoDone" style="display:none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+        </div>
+
+        <div class="menu-list">
+            <div class="menu-item tilt" onclick="copyKey()">
+                <div class="menu-left">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <h4>Скопировать ссылку</h4>
+                </div>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="menu-item tilt" onclick="window.open('https://play.google.com/store/apps/details?id=com.v2ray.ang')">
+                <div class="menu-left">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    <h4>Скачать v2rayNG</h4>
+                </div>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="menu-item tilt" onclick="window.open('https://play.google.com/store/apps/details?id=com.happproxy')">
+                <div class="menu-left">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <h4>Скачать Happ</h4>
+                </div>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+        </div>
+
+        <button class="btn-update" onclick="syncData()">
+            <svg class="icon-spin" id="syncSvg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+            Обновить данные
+        </button>`;
+
+    // Анимация трафика
+    setTimeout(() => {
+        const u = document.getElementById('bU'), d = document.getElementById('bD');
+        if(u) u.style.width='65%'; if(d) d.style.width='40%';
+    }, 600);
+
+    // Таймер
+    if (days >= 0) {
+        let rem = days * 86400;
+        const tick = () => {
+            const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=String(v).padStart(2,'0'); };
+            set('tD',Math.floor(rem/86400)); set('tH',Math.floor((rem%86400)/3600));
+            set('tM',Math.floor((rem%3600)/60)); set('tS',rem%60);
+            if(rem>0){ rem--; setTimeout(tick,1000); }
+        };
+        tick();
+    }
+
+    // Интерактивный фон
+    const glow = document.getElementById('bg-glow');
+    const targets = document.querySelectorAll('.tilt');
+    let mx=0,my=0,cx=0,cy=0;
+    (function loop(){ cx+=(mx-cx)*.05; cy+=(my-cy)*.05;
+        glow.style.transform=`translate3d(${cx-140}px,${cy-140}px,0)`; requestAnimationFrame(loop); })();
+    function move(e){ glow.style.opacity='1';
+        const px=e.touches?e.touches[0].clientX:e.clientX, py=e.touches?e.touches[0].clientY:e.clientY;
+        mx=px; my=py;
+        targets.forEach(c=>{ const r=c.getBoundingClientRect();
+            const ax=-(py-(r.top+r.height/2))/(r.height/2)*2, ay=(px-(r.left+r.width/2))/(r.width/2)*2;
+            c.style.transform=`rotateX(${ax}deg) rotateY(${ay}deg) scale3d(1.005,1.005,1.005)`;
+            c.style.borderColor='rgba(255,255,255,.08)'; }); }
+    function leave(){ glow.style.opacity='0';
+        targets.forEach(c=>{ c.style.transform=''; c.style.borderColor='var(--border)'; }); }
+    window.addEventListener('mousemove',move);
+    window.addEventListener('touchmove',move,{passive:true});
+    window.addEventListener('mouseleave',leave);
+    window.addEventListener('touchend',leave);
+}
+
+function copyKey(){
+    if(!sub) return;
+    const el=document.getElementById('keyEl');
+    const c1=document.getElementById('icoCopy'), c2=document.getElementById('icoDone');
+    if(el){ el.textContent=sub; el.classList.add('token-revealed'); }
+    if(c1) c1.style.display='none'; if(c2) c2.style.display='block';
+    const ok=()=>{ showToast();
+        setTimeout(()=>{ if(el){el.textContent='••••••••••••••••••••••••••••••••••••';el.classList.remove('token-revealed');}
+            if(c1)c1.style.display='block'; if(c2)c2.style.display='none'; },2000); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(sub).then(ok).catch(()=>{fb();ok();}); } else{fb();ok();}
+    function fb(){ const t=document.createElement('textarea');t.value=sub;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t); }
+}
+function showToast(){ const t=document.getElementById('toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function syncData(){ const s=document.getElementById('syncSvg'); if(s){s.classList.add('spinning'); setTimeout(()=>{s.classList.remove('spinning');window.location.reload();},500);} }
+</script>
+</body>
+</html>
