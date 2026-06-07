@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Jimmy VPN</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: rgba(255,255,255,.045);
+            --card-border: rgba(255,255,255,.07);
+            --card-border-h: rgba(255,255,255,.14);
+            --text: #f0f0f5;
+            --muted: rgba(255,255,255,.38);
+            --success: #3dd68c;
+            --danger: #ff5f57;
+            --accent: #6c6fff;
+            --accent-dim: rgba(108,111,255,.14);
+            --trial: #f59e0b;
+            --trial-dim: rgba(245,158,11,.1);
+        }
+        .tg-light {
+            --bg: #f2f2f7;
+            --card: rgba(0,0,0,.04);
+            --card-border: rgba(0,0,0,.09);
+            --card-border-h: rgba(0,0,0,.18);
+            --text: #0a0a0f;
+            --muted: rgba(0,0,0,.42);
+        }
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+        html{height:100%}
+        body{background:var(--bg);color:var(--text);
+            font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',Roboto,sans-serif;
+            min-height:100vh;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom)}
+
+        /* Shimmer */
+        @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+
+        /* Layout */
+        .wrapper{max-width:420px;margin:0 auto;padding:14px 13px 36px;display:flex;flex-direction:column;gap:10px}
+
+        /* Cards */
+        .card{background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:16px;transition:border-color .25s}
+
+        /* Header */
+        .hcard{display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .hcard-left{display:flex;align-items:center;gap:12px}
+        .logo{width:44px;height:44px;border-radius:12px;overflow:hidden;background:#111;
+            border:1px solid rgba(255,255,255,.07);flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;font-size:22px}
+        .logo img{width:100%;height:100%;object-fit:cover}
+        .brand{font-size:16px;font-weight:700;letter-spacing:-.3px}
+        .status-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+        .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+        .dot-on{background:var(--success);box-shadow:0 0 8px var(--success);animation:pdot 2s infinite}
+        .dot-off{background:var(--danger)}
+        .dot-trial{background:var(--trial);box-shadow:0 0 8px var(--trial);animation:pdot 2s infinite}
+        @keyframes pdot{0%,100%{opacity:1}50%{opacity:.3}}
+        .status-text{font-size:12px;font-weight:500}
+        .exp-badge{display:inline-flex;align-items:center;gap:5px;
+            background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+            border-radius:8px;padding:5px 9px;font-size:11px;color:var(--muted);margin-top:8px}
+        .exp-badge b{color:var(--text)}
+
+        /* Trial banner */
+        .trial-banner{background:var(--trial-dim);border:1px solid rgba(245,158,11,.22);
+            border-radius:14px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px}
+        .trial-banner .ti{font-size:20px;flex-shrink:0;margin-top:1px}
+        .trial-banner h4{font-size:13px;font-weight:700;color:var(--trial)}
+        .trial-banner p{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5}
+
+        /* Metrics */
+        .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .metric-card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:14px}
+        .mlabel{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+        .mvalue{font-size:28px;font-weight:800;letter-spacing:-.8px;margin-top:6px}
+        .munit{font-size:11px;color:var(--muted);margin-top:2px}
+        .traffic-row{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-top:8px}
+        .traffic-row span:first-child{color:var(--muted)}
+        .tbar{height:3px;border-radius:100px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:5px}
+        .tbar-fill{height:100%;border-radius:100px;width:0;transition:width 1.1s cubic-bezier(.34,1.2,.64,1)}
+        .tbar-up{background:linear-gradient(90deg,#2980b9,#74b9e8)}
+        .tbar-dn{background:linear-gradient(90deg,#27ae60,#58d68d)}
+
+        /* Expired */
+        .expired-card{background:rgba(255,95,87,.06);border:1px solid rgba(255,95,87,.18);
+            border-radius:18px;padding:20px;text-align:center}
+        .expired-card .eicon{font-size:36px;margin-bottom:10px}
+        .expired-card h3{font-size:16px;font-weight:800;color:var(--danger)}
+        .expired-card p{font-size:13px;color:var(--muted);margin-top:6px}
+
+        /* Key card */
+        .mlabel-sm{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+        .key-mono{font-family:ui-monospace,'SF Mono',monospace;font-size:12px;color:var(--muted);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:5px;
+            transition:color .2s;max-width:100%}
+        .key-mono.shown{color:var(--text)}
+        .key-actions{display:flex;gap:8px;margin-top:12px}
+        .key-btn{flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--card-border);
+            background:rgba(255,255,255,.04);color:var(--text);font-size:11px;font-weight:600;
+            cursor:pointer;transition:background .2s,border-color .2s;
+            display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+        .key-btn:active{background:rgba(255,255,255,.09);border-color:var(--card-border-h)}
+
+        /* Menu */
+        .menu{display:flex;flex-direction:column;gap:8px}
+        .mi{display:flex;align-items:center;justify-content:space-between;
+            padding:13px 15px;background:var(--card);border:1px solid var(--card-border);
+            border-radius:16px;cursor:pointer;transition:border-color .2s,background .2s}
+        .mi:active{background:rgba(255,255,255,.07);border-color:var(--card-border-h)}
+        .mi-left{display:flex;align-items:center;gap:11px}
+        .mi-icon{width:32px;height:32px;border-radius:9px;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .mi h4{font-size:14px;font-weight:600}
+        .mi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+        .chevron{color:var(--muted);flex-shrink:0}
+
+        .mi-accent{border-color:rgba(108,111,255,.25);background:var(--accent-dim)}
+        .mi-accent h4{color:#a5a7ff}
+        .mi-accent .mi-icon{background:rgba(108,111,255,.15)}
+        .mi-accent:active{border-color:rgba(108,111,255,.45)}
+
+        .mi-danger{border-color:rgba(255,95,87,.2);background:rgba(255,95,87,.06)}
+        .mi-danger h4{color:var(--danger)}
+        .mi-danger .mi-icon{background:rgba(255,95,87,.1)}
+        .mi-danger:active{border-color:rgba(255,95,87,.4)}
+
+        /* Tabs */
+        .tabs{display:flex;gap:5px;background:rgba(255,255,255,.04);
+            border:1px solid var(--card-border);border-radius:14px;padding:4px}
+        .tab-btn{flex:1;padding:9px;border:none;background:transparent;
+            color:var(--muted);font-size:13px;font-weight:600;
+            border-radius:10px;cursor:pointer;transition:all .2s}
+        .tab-btn.active{background:rgba(255,255,255,.09);color:var(--text)}
+        .tab-content{display:none;flex-direction:column;gap:10px}
+        .tab-content.active{display:flex}
+
+        /* Instruction */
+        .instr-step{display:flex;gap:12px;align-items:flex-start;
+            background:var(--card);border:1px solid var(--card-border);
+            border-radius:16px;padding:14px}
+        .instr-num{width:28px;height:28px;border-radius:50%;
+            background:var(--accent-dim);border:1px solid rgba(108,111,255,.3);
+            color:#a5a7ff;display:flex;align-items:center;justify-content:center;
+            font-size:11px;font-weight:800;flex-shrink:0}
+        .instr-text h4{font-size:13px;font-weight:700;margin-bottom:4px}
+        .instr-text p{font-size:12px;color:var(--muted);line-height:1.65}
+        .platform-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+        .pbadge{padding:6px 12px;border:1px solid var(--card-border);
+            border-radius:8px;font-size:12px;color:var(--muted);cursor:pointer;
+            transition:background .2s,border-color .2s}
+        .pbadge:active{background:rgba(255,255,255,.07);border-color:var(--card-border-h)}
+
+        /* Sync btn */
+        .btn-sync{background:transparent;border:1px solid var(--card-border);
+            color:var(--muted);border-radius:14px;padding:13px;
+            font-size:13px;font-weight:600;cursor:pointer;
+            display:flex;justify-content:center;align-items:center;gap:8px;
+            width:100%;transition:background .2s,border-color .2s,color .2s}
+        .btn-sync:active{background:var(--card);color:var(--text);border-color:var(--card-border-h)}
+        .spin-icon{transition:transform .6s ease}
+        .spinning{transform:rotate(360deg)}
+
+        /* Renew */
+        .btn-renew{width:100%;margin-top:14px;padding:14px;
+            background:linear-gradient(135deg,var(--danger),#c0392b);
+            border:none;color:#fff;border-radius:14px;
+            font-size:14px;font-weight:700;cursor:pointer;
+            box-shadow:0 4px 24px rgba(255,95,87,.25)}
+
+        /* Toast */
+        .toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));
+            left:50%;transform:translateX(-50%) translateY(80px);
+            background:rgba(20,20,30,.92);backdrop-filter:blur(16px);
+            border:1px solid rgba(255,255,255,.1);color:var(--text);
+            padding:11px 22px;border-radius:100px;font-size:13px;font-weight:600;
+            transition:transform .3s cubic-bezier(.34,1.4,.64,1);
+            white-space:nowrap;z-index:999;pointer-events:none}
+        .toast.show{transform:translateX(-50%) translateY(0)}
+
+        /* QR */
+        .qr-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);
+            display:flex;align-items:center;justify-content:center;
+            z-index:100;opacity:0;pointer-events:none;transition:opacity .25s}
+        .qr-modal.show{opacity:1;pointer-events:all}
+        .qr-box{background:#fff;border-radius:20px;padding:24px;
+            display:flex;flex-direction:column;align-items:center;gap:14px;
+            transform:scale(.9);transition:transform .25s cubic-bezier(.34,1.4,.64,1)}
+        .qr-modal.show .qr-box{transform:scale(1)}
+        .qr-box p{color:#333;font-size:13px;text-align:center}
+        .qr-close{background:#111;color:#fff;border:none;border-radius:12px;
+            padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer}
+
+        /* Stranger */
+        .stranger{min-height:100vh;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+        .stranger-glow{width:100px;height:100px;border-radius:50%;
+            background:radial-gradient(circle,rgba(255,95,87,.25) 0%,transparent 70%);
+            display:flex;align-items:center;justify-content:center;
+            font-size:46px;margin-bottom:20px;animation:bobble 3s ease-in-out infinite}
+        @keyframes bobble{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        .stranger h1{font-size:22px;font-weight:800;margin-bottom:10px}
+        .stranger p{font-size:14px;color:var(--muted);line-height:1.7;max-width:280px}
+        .step-list{margin:20px 0;display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px}
+        .step{display:flex;align-items:center;gap:12px;background:var(--card);
+            border:1px solid var(--card-border);border-radius:12px;padding:12px 14px;text-align:left}
+        .step-num{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.07);
+            border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;
+            font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0}
+        .step span{font-size:13px;color:var(--muted)}
+        .step b{color:var(--text)}
+        .btn-open{width:100%;max-width:280px;padding:15px;
+            background:linear-gradient(135deg,#2980b9,#5dade2);
+            border:none;color:#fff;border-radius:14px;
+            font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;
+            box-shadow:0 4px 20px rgba(41,128,185,.3)}
+
+        /* Fade-in */
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .anim{opacity:0;animation:fadeUp .35s ease forwards}
+        .d1{animation-delay:.04s}.d2{animation-delay:.10s}.d3{animation-delay:.17s}
+        .d4{animation-delay:.24s}.d5{animation-delay:.31s}.d6{animation-delay:.38s}
+        .d7{animation-delay:.45s}
+    </style>
+    <style>
+        /* ── Animated background blobs ─────────────────── */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        body::before {
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(108,111,255,.18) 0%, transparent 70%);
+            top: -80px; right: -60px;
+            animation: blob1 8s ease-in-out infinite;
+        }
+        body::after {
+            width: 250px; height: 250px;
+            background: radial-gradient(circle, rgba(41,128,185,.14) 0%, transparent 70%);
+            bottom: 10%; left: -80px;
+            animation: blob2 10s ease-in-out infinite;
+        }
+        @keyframes blob1 {
+            0%,100% { transform: translate(0,0) scale(1); }
+            33%      { transform: translate(-20px,30px) scale(1.1); }
+            66%      { transform: translate(15px,-20px) scale(.9); }
+        }
+        @keyframes blob2 {
+            0%,100% { transform: translate(0,0) scale(1); }
+            33%      { transform: translate(25px,-30px) scale(1.15); }
+            66%      { transform: translate(-15px,20px) scale(.92); }
+        }
+        .wrapper { position: relative; z-index: 1; }
+
+        /* ── Card glow on hover/active ─────────────────── */
+        .mi { position: relative; overflow: hidden; }
+        .mi::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: radial-gradient(circle at 30% 50%,
+                rgba(108,111,255,.08) 0%, transparent 65%);
+            opacity: 0;
+            transition: opacity .3s;
+            pointer-events: none;
+        }
+        .mi:active::after { opacity: 1; }
+
+        .mi-accent::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: 20%;
+            width: 60%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(108,111,255,.6), transparent);
+            border-radius: 0;
+        }
+
+        /* ── Metric card glow ─────────────────── */
+        .metric-card { position: relative; overflow: hidden; }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: -30px; right: -30px;
+            width: 100px; height: 100px;
+            background: radial-gradient(circle, rgba(41,128,185,.12) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* ── Key card glow ─────────────────── */
+        .card { position: relative; overflow: hidden; }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -40px; left: -40px;
+            width: 140px; height: 140px;
+            background: radial-gradient(circle, rgba(108,111,255,.07) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: cardglow 6s ease-in-out infinite;
+        }
+        @keyframes cardglow {
+            0%,100% { opacity: .6; transform: translate(0,0); }
+            50%      { opacity: 1;  transform: translate(10px,10px); }
+        }
+
+        /* ── Instr num pulse ─────────────────── */
+        .instr-num {
+            animation: numglow 3s ease-in-out infinite;
+        }
+        @keyframes numglow {
+            0%,100% { box-shadow: 0 0 0px rgba(108,111,255,0); }
+            50%      { box-shadow: 0 0 12px rgba(108,111,255,.4); }
+        }
+
+        /* ── Status dot enhanced ─────────────── */
+        .dot-on  { box-shadow: 0 0 0 3px rgba(61,214,140,.15), 0 0 10px var(--success); }
+        .dot-trial{ box-shadow: 0 0 0 3px rgba(245,158,11,.15), 0 0 10px var(--trial); }
+
+        /* ── Smooth page entrance ─────────────── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Tab active indicator ─────────────── */
+        .tab-btn.active {
+            background: rgba(108,111,255,.15);
+            color: #a5a7ff;
+            box-shadow: inset 0 0 0 1px rgba(108,111,255,.2);
+        }
+
+        /* ── Sync btn hover glow ─────────────── */
+        .btn-sync:active {
+            box-shadow: 0 0 20px rgba(108,111,255,.12);
+        }
+
+        /* ── Key card inner line ─────────────── */
+        .card.anim.d4::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 15%; right: 15%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(108,111,255,.3), transparent);
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper" id="root"></div>
+<div class="toast" id="toast"></div>
+<div class="qr-modal" id="qrModal" onclick="hideQR()">
+    <div class="qr-box" onclick="event.stopPropagation()">
+        <div id="qrcode"></div>
+        <p>Отсканируйте с другого устройства</p>
+        <button class="qr-close" onclick="hideQR()">Закрыть</button>
+    </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand(); tg.ready();
+
+if(tg.colorScheme === 'light') document.documentElement.classList.add('tg-light');
+
+const p       = new URLSearchParams(window.location.search);
+const sub     = p.get('sub')    || '';
+const days    = parseInt(p.get('days') ?? '-1');
+const upStr   = p.get('up')    || '0 Б';
+const dnStr   = p.get('down')  || '0 Б';
+const active  = p.get('active') === '1';
+const trial   = p.get('trial') === '1';
+const expDate = p.get('exp')   || '';
+const bal     = p.get('balance') || '0';
+const histRaw = p.get('hist')  || '';
+const payments = histRaw ? histRaw.split(',').map(r=>{const[d,a,t]=r.split('|');return{date:d,amt:a,type:t};}).filter(r=>r.amt) : [];
+const root    = document.getElementById('root');
+
+let keyShown = false;
+let _qrGen   = false;
+
+function showToast(msg, ms=2400){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), ms);
+}
+function haptic(t='light'){ try{tg.HapticFeedback.impactOccurred(t)}catch(e){} }
+
+function switchTab(name){
+    try{tg.HapticFeedback.selectionChanged()}catch(e){}
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+        b.classList.toggle('active',(i===0&&name==='key')||(i===1&&name==='instr')||(i===2&&name==='pay'));
+    });
+    ['key','instr','pay'].forEach(n=>{
+        const el=document.getElementById('tab-'+n);
+        if(el) el.classList.toggle('active',n===name);
+    });
+}
+
+function openInV2ray(){
+    if(!sub) return;
+    haptic('medium');
+    // Пробуем обе схемы
+    const deepLink = 'v2rayng://install-config?url=' + encodeURIComponent(sub);
+    const a = document.createElement('a');
+    a.href = deepLink; a.style.display='none';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    showToast('📡 Открываем приложение...');
+}
+
+function copyKey(){
+    if(!sub) return;
+    function done(){ haptic('medium'); showToast('✓ Скопировано'); }
+    if(navigator.clipboard && window.isSecureContext){
+        navigator.clipboard.writeText(sub).then(done).catch(()=>{fb();done();});
+    } else {
+        const t=document.createElement('textarea');
+        t.value=sub;t.style.cssText='position:fixed;opacity:0';
+        document.body.appendChild(t);t.focus();t.select();
+        try{document.execCommand('copy')}catch(e){}
+        document.body.removeChild(t); done();
+    }
+}
+
+function toggleKey(){
+    keyShown = !keyShown; haptic();
+    const el = document.getElementById('keyEl');
+    const btn = document.getElementById('keyToggleTxt');
+    if(!el) return;
+    if(keyShown){ el.textContent=sub; el.classList.add('shown'); if(btn) btn.textContent='🙈 Скрыть'; }
+    else { el.textContent='••••••••••••••••••••••••••••••••••'; el.classList.remove('shown'); if(btn) btn.textContent='👁 Показать'; }
+}
+
+function showQR(){
+    if(!sub) return; haptic();
+    if(!_qrGen){
+        new QRCode(document.getElementById('qrcode'),{
+            text:sub,width:200,height:200,colorDark:'#000',colorLight:'#fff',
+            correctLevel:QRCode.CorrectLevel.M
+        }); _qrGen=true;
+    }
+    document.getElementById('qrModal').classList.add('show');
+}
+function hideQR(){ document.getElementById('qrModal').classList.remove('show'); }
+
+function renewSub(){ haptic(); tg.sendData('renew'); }
+
+function syncData(){
+    haptic();
+    const s=document.getElementById('syncSvg');
+    if(s) s.classList.add('spinning');
+    setTimeout(()=>{ if(s) s.classList.remove('spinning'); tg.sendData('refresh'); }, 500);
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+if(!sub){
+    const fromBot = tg.initData && tg.initData.length > 0;
+    root.innerHTML = `
+    <div class="stranger">
+        <div class="stranger-glow">🔒</div>
+        <h1>${fromBot ? 'Ключ не найден' : 'Доступ закрыт'}</h1>
+        <p>${fromBot
+            ? 'У вас ещё нет активного ключа.<br>Оформите подписку в боте.'
+            : 'Это личный кабинет сервиса <b>Jimmy VPN</b>.<br>Открывайте только через бот.'
+        }</p>
+        <div class="step-list">
+            <div class="step"><div class="step-num">1</div><span>Откройте <b>@Jimmy_Vpn_bot</b></span></div>
+            <div class="step"><div class="step-num">2</div><span>Нажмите <b>👤 Личный кабинет</b></span></div>
+            <div class="step"><div class="step-num">3</div><span>Нажмите <b>📡 Подключить</b></span></div>
+        </div>
+        <button class="btn-open" onclick="tg.close()">${fromBot ? '← Вернуться в бот' : '← Открыть бот'}</button>
+    </div>`;
+} else {
+
+    let dotCls = 'dot-off', stColor = 'var(--danger)', stText = 'Подписка отключена';
+    if(trial){ dotCls='dot-trial'; stColor='var(--trial)'; stText='🎁 Пробный период'; }
+    else if(active){ dotCls='dot-on'; stColor='var(--success)'; stText='Подписка активна'; }
+
+    const expBlock = expDate ? `<div class="exp-badge">📅 До <b>${expDate}</b></div>` : '';
+
+    const trialBanner = trial ? `
+    <div class="trial-banner anim d2">
+        <div class="ti">🎁</div>
+        <div>
+            <h4>Пробный период</h4>
+            <p>Это тестовый доступ. Оформите подписку чтобы продолжить пользоваться VPN.</p>
+        </div>
+    </div>` : '';
+
+    const metricsBlock = days < 0
+        ? `<div class="expired-card anim d3">
+            <div class="eicon">⚠️</div>
+            <h3>Подписка истекла</h3>
+            <p>Пополните баланс для продления</p>
+            <button class="btn-renew" onclick="renewSub()">💳 Продлить подписку</button>
+           </div>`
+        : `<div class="metrics anim d3">
+            <div class="metric-card">
+                <div class="mlabel">Осталось</div>
+                <div class="mvalue">${days}</div>
+                <div class="munit">дней</div>
+            </div>
+            <div class="metric-card">
+                <div class="mlabel">Трафик</div>
+                <div class="traffic-row"><span>↑</span><span>${upStr}</span></div>
+                <div class="tbar"><div class="tbar-fill tbar-up" id="bU"></div></div>
+                <div class="traffic-row" style="margin-top:6px"><span>↓</span><span>${dnStr}</span></div>
+                <div class="tbar"><div class="tbar-fill tbar-dn" id="bD"></div></div>
+            </div>
+           </div>`;
+
+    root.innerHTML = `
+    <div class="tabs anim d1">
+        <button class="tab-btn active" onclick="switchTab('key')">🔑 Ключ</button>
+        <button class="tab-btn" onclick="switchTab('instr')">📖 Инструкция</button>
+        <button class="tab-btn" onclick="switchTab('pay')">💳 Платежи</button>
+    </div>
+
+    <div id="tab-key" class="tab-content active">
+
+        <div class="card hcard anim d2">
+            <div class="hcard-left">
+                <div class="logo">
+                    <img src="logo.png" onerror="this.style.display='none';this.parentNode.innerHTML='🛡️'">
+                </div>
+                <div>
+                    <div class="brand">Jimmy VPN</div>
+                    <div class="status-row">
+                        <div class="dot ${dotCls}"></div>
+                        <span class="status-text" style="color:${stColor}">${stText}</span>
+                    </div>
+                    ${expBlock}
+                </div>
+            </div>
+        </div>
+
+        ${trialBanner}
+        ${metricsBlock}
+
+        <div class="card anim d4">
+            <div class="mlabel-sm">Ссылка подписки</div>
+            <div class="key-mono" id="keyEl">••••••••••••••••••••••••••••••••••</div>
+            <div class="key-actions">
+                <button class="key-btn" onclick="toggleKey()"><span id="keyToggleTxt">👁 Показать</span></button>
+                <button class="key-btn" onclick="copyKey()">📋 Копировать</button>
+                <button class="key-btn" onclick="showQR()">📷 QR</button>
+            </div>
+        </div>
+
+        <div class="menu anim d5">
+<div class="mi mi-accent" onclick="openInV2ray()">
+                <div class="mi-left">
+                    <div class="mi-icon">⚡</div>
+                    <div><h4>Открыть в v2rayTun</h4><div class="sub">Ключ добавится автоматически</div></div>
+                </div>
+                <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <div class="mi" onclick="tg.openLink('https://play.google.com/store/apps/details?id=com.v2raytun.android')">
+                <div class="mi-left">
+                    <div class="mi-icon" style="background:rgba(255,255,255,.05)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    </div>
+                    <div><h4>Скачать v2rayNG</h4><div class="sub">Android · Google Play</div></div>
+                </div>
+                <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <div class="mi" onclick="tg.openLink('https://apps.apple.com/app/v2raytun/id6476628951')">
+                <div class="mi-left">
+                    <div class="mi-icon" style="background:rgba(255,255,255,.05)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    </div>
+                    <div><h4>Скачать v2rayTun</h4><div class="sub">iOS · App Store</div></div>
+                </div>
+                <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+
+        </div>
+
+        <button class="btn-sync anim d6" onclick="syncData()">
+            <svg class="spin-icon" id="syncSvg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+            Обновить данные
+        </button>
+    </div>
+
+    <div id="tab-pay" class="tab-content">
+        <div class="card anim d2">
+            <div class="mlabel-sm" style="margin-bottom:12px">История платежей</div>
+            ${payments.length > 0
+                ? payments.map(r=>`
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--card-border)">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="width:32px;height:32px;border-radius:9px;background:rgba(61,214,140,.1);display:flex;align-items:center;justify-content:center;font-size:14px">💰</div>
+                            <div>
+                                <div style="font-size:13px;font-weight:600">${r.type||'Пополнение'}</div>
+                                <div style="font-size:11px;color:var(--muted)">${r.date||''}</div>
+                            </div>
+                        </div>
+                        <div style="font-size:16px;font-weight:700;color:var(--success)">+${r.amt} ₽</div>
+                    </div>`).join('')
+                : '<div style="text-align:center;padding:28px 0;color:var(--muted);font-size:13px">📭 История платежей пуста</div>'
+            }
+        </div>
+        <div class="card anim d3" style="text-align:center">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Баланс: <b style="color:var(--text)">${bal} ₽</b></div>
+            <button class="btn-renew" onclick="renewSub()" style="margin-top:0">💳 Купить подписку</button>
+        </div>
+    </div>
+
+    <div id="tab-instr" class="tab-content">
+        <div class="instr-step anim d2">
+            <div class="instr-num">1</div>
+            <div class="instr-text">
+                <h4>Скачайте приложение</h4>
+                <p>v2rayNG (Android) или v2rayTun (iOS) — лучшие клиенты для подключения к VPN.</p>
+                <div class="platform-row">
+                    <div class="pbadge" onclick="tg.openLink('https://play.google.com/store/apps/details?id=com.v2raytun.android')">🤖 Android</div>
+                    <div class="pbadge" onclick="tg.openLink('https://apps.apple.com/app/v2raytun/id6476628951')">🍎 iOS</div>
+                </div>
+            </div>
+        </div>
+        <div class="instr-step anim d3">
+            <div class="instr-num">2</div>
+            <div class="instr-text">
+                <h4>Добавьте ключ</h4>
+                <p>Перейдите на вкладку <b>«Мой ключ»</b>, нажмите <b>«Показать»</b> и скопируйте ссылку подписки. Затем вставьте её в приложение через <b>«+» → «Импорт из буфера»</b>.</p>
+            </div>
+        </div>
+        <div class="instr-step anim d4">
+            <div class="instr-num">3</div>
+            <div class="instr-text">
+                <h4>Подключитесь</h4>
+                <p>Откройте приложение, выберите добавленный сервер и нажмите кнопку подключения.</p>
+            </div>
+        </div>
+        <div class="instr-step anim d5">
+            <div class="instr-num">4</div>
+            <div class="instr-text">
+                <h4>QR-код для второго устройства</h4>
+                <p>Нажмите кнопку ниже чтобы показать QR-код и отсканировать с другого устройства.</p>
+            </div>
+        </div>
+        <button class="btn-sync anim d6" onclick="showQR()" style="color:var(--text);border-color:var(--card-border-h)">
+            📷 Показать QR-код
+        </button>
+    </div>`;
+
+    setTimeout(()=>{
+        const u=document.getElementById('bU'),d=document.getElementById('bD');
+        if(u) u.style.width='65%';
+        if(d) d.style.width='40%';
+    }, 600);
+}
+</script>
+</body>
+</html>
